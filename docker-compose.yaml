@@ -25,6 +25,14 @@ services:
       KAFKA_BROKER: ${KAFKA_BROKER_PORT}
     networks:
       - kafka-network
+    dotnet-app:
+      build: ./dotnet-app  # Path to your .NET app Dockerfile
+      depends_on:
+        - kafka
+      environment:
+        - KAFKA_BROKER=kafka:9092  # Same Kafka broker
+      networks:
+      - kafka-network
 
 networks:
   kafka-network:
