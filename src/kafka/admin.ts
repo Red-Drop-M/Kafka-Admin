@@ -27,6 +27,7 @@ export const listTopics = async (): Promise<string[]> => {
 export const createTopic = async (topicName: string) => {
   const admin = kafka.admin();
   await admin.connect();
+  logger.info(`connected to admin kafka`);
 
   await admin.createTopics({
     topics: [{ topic: topicName, numPartitions: 1, replicationFactor: 1 }],

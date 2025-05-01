@@ -1,39 +1,15 @@
 services:
-  kafka:
-    image: bitnami/kafka:latest
-    ports:
-      - "${KAFKA_BROKER_PORT}:${KAFKA_BROKER_PORT}"
-    environment:
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:${KAFKA_CONTROLLER}
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://${KAFKA_BROKER}
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:${KAFKA_CONTROLLER}
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-    networks:
-      - kafka-network
-
   express-app:
-    build: ./
+    build: .
     ports:
-    - "${PORT}:${PORT}"
-    depends_on:
-      - kafka
+      - "3000:3000"  # Expose port 3000
+    restart: unless-stopped  # Restart policy
     environment:
-      KAFKA_BROKER: ${KAFKA_BROKER_PORT}
+      - KAFKA_BROKER=kafka-broker:9092  # Connect via container name
     networks:
-      - kafka-network
-    dotnet-app:
-      build: ./dotnet-app  # Path to your .NET app Dockerfile
-      depends_on:
-        - kafka
-      environment:
-        - KAFKA_BROKER=kafka:9092  # Same Kafka broker
-      networks:
-      - kafka-network
+      - shared-kafka-net  # Same network as Kafka
 
 networks:
-  kafka-network:
-    driver: bridge
+  shared-kafka-net:
+    name: kafka-net  # Name of the network
+    external: true  # Reuse Kafka's network
