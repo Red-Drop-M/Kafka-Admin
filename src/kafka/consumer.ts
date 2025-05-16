@@ -1,7 +1,10 @@
 import { logger } from '../utils/logger';
 import { kafka } from './client';
 
-export const startConsumer = async (topic: string) => {
+export const startConsumer = async (
+  topic: string,
+  onMessage?: (message: string) => void
+) => {
   const consumer = kafka.consumer({ groupId: 'bun-group' });
 
   try {
@@ -12,7 +15,12 @@ export const startConsumer = async (topic: string) => {
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        console.log(`[Consumer] ${topic} | ${message.value?.toString()}`);
+        const msg = message.value?.toString() ?? '';
+        if (onMessage) {
+          onMessage(msg);
+        } else {
+          logger.info(`[Consumer] ${topic} | ${msg}`);
+        }
       },
     });
   } catch (err) {
@@ -20,3 +28,5 @@ export const startConsumer = async (topic: string) => {
     console.error('[Consumer] Error:', err);
   }
 };
+
+
