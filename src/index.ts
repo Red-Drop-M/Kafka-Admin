@@ -1,11 +1,12 @@
 import "./config";
-import express, { type Express, type Request, type Response } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction, type ErrorRequestHandler,type RequestHandler } from 'express';
 import { configDotenv } from 'dotenv';
 import cors from 'cors';
 import { createTopic, deleteTopic, listTopics } from './kafka/admin';
 import { logger } from './utils/logger';
 import { startConsumer } from './kafka/consumer';
-
+import { sendMessage } from './kafka/producer';
+import { donorPledgeHandler } from "./services/DonorPledge";
 configDotenv();
 
 async function main() {
@@ -20,7 +21,12 @@ async function main() {
   });
 
   app.use(cors({ origin: '*' }));
-  app.use(express.json());
+
+  // Increase the limit for JSON bodies
+  app.use(express.json({ limit: '10mb' }));
+
+  // Add URL-encoded parser with increased limits if needed
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   app.get("/", (req: Request, res: Response) => {
     logger.info("Hello from Bun + Express!");
@@ -36,6 +42,8 @@ async function main() {
       res.status(500).json({ error: 'Failed to fetch topics' });
     }
   });
+
+  app.post('/donor-pledge', donorPledgeHandler)
 
   app.post('/topics', async (req: Request, res: Response) => {
     const { topic } = req.body;
@@ -59,6 +67,26 @@ async function main() {
       res.status(500).json({ error: "Failed to delete topic" });
     }
   });
+
+ // Explicitly type the middleware as ErrorRequestHandler
+app.use(((err: any, req: Request, res: Response, next: NextFunction) => {
+  const error = err; // No need for type assertion now
+  
+  if (error.type === 'entity.too.large') {
+    logger.error('Request entity too large');
+    res.status(413).json({ error: 'Request entity too large' });
+    return;
+  }
+  
+  if (error.status === 400 && error.message.includes('content length')) {
+    logger.error('Bad request: Content length mismatch');
+    res.status(400).json({ error: 'Invalid request body' });
+    return;
+  }
+  
+  logger.error('Internal server error:', error);
+  res.status(500).json({ error: 'Internal server error' });
+}) as ErrorRequestHandler); // Type assertion here
 
   app.listen(PORT, () => {
     logger.info(`Server running on http://localhost:${PORT}`);
