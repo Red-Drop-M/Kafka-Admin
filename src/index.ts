@@ -23,7 +23,14 @@ async function main() {
   app.use(cors({ origin: '*' }));
 
   // Increase the limit for JSON bodies
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ 
+    limit: '10mb',
+    verify: (req, res, buf) => {
+      // This will be called when the parsing is complete
+      // If we got here, the body parser was able to parse the request
+      logger.debug('Request body parsed successfully');
+    }
+  }));
 
   // Add URL-encoded parser with increased limits if needed
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -79,7 +86,11 @@ app.use(((err: any, req: Request, res: Response, next: NextFunction) => {
   }
   
   if (error.status === 400 && error.message.includes('content length')) {
-    logger.error('Bad request: Content length mismatch');
+    logger.error(`Content length mismatch: ${req.method} ${req.originalUrl}`, {
+      headers: req.headers,
+      path: req.path,
+      ip: req.ip
+    });
     res.status(400).json({ error: 'Invalid request body' });
     return;
   }
